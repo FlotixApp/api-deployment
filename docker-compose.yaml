@@ -1,9 +1,51 @@
+version: '3.9'
+
 services:
-  auth:
-    image: flotix/auth:latest
-    env_file:
-      - /etc/secrets/flotix.env
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # TLS
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      - "--certificatesresolvers.le.acme.email=admin@flotix.io"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+
     restart: unless-stopped
 
+  auth:
+    image: ghcr.io/flotixapp/auth-service:latest
+    env_file:
+      - /etc/secrets/flotix.env
+
+    labels:
+      - "traefik.enable=true"
+
+      # Router: api.flotix.io/auth (prefix-based routing)
+      - "traefik.http.routers.auth.rule=Host(`api.flotix.io`) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls.certresolver=le"
+
+      # Strip /auth before sending to the service (your service expects / endpoints)
+      - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/auth"
+      - "traefik.http.routers.auth.middlewares=auth-strip"
+
+      # Define service port
+      - "traefik.http.services.auth.loadbalancer.server.port=8080"
+
+    restart: unless-stopped
