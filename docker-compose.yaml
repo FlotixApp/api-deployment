@@ -33,19 +33,13 @@ services:
     env_file:
       - /etc/secrets/flotix.env
 
-    labels:
+  labels:
       - "traefik.enable=true"
-
-      # Router: api.flotix.io/auth (prefix-based routing)
+    
       - "traefik.http.routers.auth.rule=Host(`api.flotix.io`) && PathPrefix(`/auth`)"
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls.certresolver=le"
-
-      # Strip /auth before sending to the service (your service expects / endpoints)
-      - "traefik.http.middlewares.auth-strip.stripprefix.prefixes=/auth"
-      - "traefik.http.routers.auth.middlewares=auth-strip"
-
-      # Define service port
+    
       - "traefik.http.services.auth.loadbalancer.server.port=8080"
 
     restart: unless-stopped
