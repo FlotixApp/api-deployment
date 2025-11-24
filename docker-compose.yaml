@@ -1,0 +1,9 @@
+services:
+  auth:
+    image: flotix/auth:latest
+    env_file:
+      - /etc/secrets/flotix.env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
